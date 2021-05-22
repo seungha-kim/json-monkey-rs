@@ -1,6 +1,5 @@
 use crate::ast::{AstNode, Ident};
 use crate::environment::Environment;
-use crate::jir::{JirParser, ParseError};
 use crate::value::{TypeError, Value};
 
 pub struct Interpreter {
@@ -12,11 +11,6 @@ impl Interpreter {
         Self {
             global_env: Environment::new(),
         }
-    }
-
-    pub fn eval_str(&mut self, s: &str) -> Result<Value, EvalError> {
-        let node = JirParser::parse_json(s)?;
-        self.eval(&node)
     }
 
     pub fn eval(&mut self, ast: &AstNode) -> Result<Value, EvalError> {
@@ -51,15 +45,8 @@ impl Interpreter {
 
 #[derive(Debug)]
 pub enum EvalError {
-    ParseError(ParseError),
     TypeError(TypeError),
     UndefinedIdent(Ident),
-}
-
-impl From<ParseError> for EvalError {
-    fn from(e: ParseError) -> Self {
-        Self::ParseError(e)
-    }
 }
 
 impl From<TypeError> for EvalError {
