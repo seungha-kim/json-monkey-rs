@@ -1,6 +1,6 @@
 use crate::ast::{AstNode, Ident};
 use crate::environment::Environment;
-use crate::value::{TypeError, Value};
+use crate::value::Value;
 
 pub struct Interpreter {
     global_env: Environment,
@@ -19,12 +19,16 @@ impl Interpreter {
             AstNode::Add(lhs, rhs) => {
                 let lv = self.eval(lhs)?;
                 let rv = self.eval(rhs)?;
-                Ok(Value::Number(lv.as_number()? + rv.as_number()?))
+                match (lv, rv) {
+                    (Value::Number(l), Value::Number(r)) => Ok(Value::Number(l + r)),
+                    (Value::String(l), Value::String(r)) => Ok(Value::String(l + &r)),
+                    _ => Err(EvalError::UnexpectedTypeForOperation),
+                }
             }
             AstNode::Sub(lhs, rhs) => {
                 let lv = self.eval(lhs)?;
                 let rv = self.eval(rhs)?;
-                Ok(Value::Number(lv.as_number()? - rv.as_number()?))
+                Ok(Value::Number(lv.to_number()? - rv.to_number()?))
             }
             AstNode::Ident(ident) => {
                 // TODO: without clone
@@ -43,16 +47,29 @@ impl Interpreter {
     }
 }
 
-#[derive(Debug)]
-pub enum EvalError {
-    TypeError(TypeError),
-    UndefinedIdent(Ident),
+impl Value {
+    pub fn to_number(&self) -> Result<f64, EvalError> {
+        if let Value::Number(num) = self {
+            Ok(num.clone())
+        } else {
+            Err(EvalError::UnsupportedConversion)
+        }
+    }
+
+    pub fn to_string(&self) -> Result<String, EvalError> {
+        match self {
+            Value::Number(n) => Ok(n.to_string()),
+            Value::String(s) => Ok(s.clone()),
+            Value::Null => Ok("null".into()),
+        }
+    }
 }
 
-impl From<TypeError> for EvalError {
-    fn from(e: TypeError) -> Self {
-        Self::TypeError(e)
-    }
+#[derive(Debug)]
+pub enum EvalError {
+    UnsupportedConversion,
+    UndefinedIdent(Ident),
+    UnexpectedTypeForOperation,
 }
 
 #[cfg(test)]
@@ -68,7 +85,7 @@ mod tests {
             Box::new(AstNode::Literal(Value::Number(2.0))),
         );
         let result = i.eval(&ast);
-        assert_eq!(result?.as_number()?, 3.0);
+        assert_eq!(result?.to_number()?, 3.0);
         Ok(())
     }
 
@@ -80,7 +97,7 @@ mod tests {
             Box::new(AstNode::Literal(Value::Number(1.0))),
         );
         let result = i.eval(&ast);
-        assert_eq!(result?.as_number()?, 1.0);
+        assert_eq!(result?.to_number()?, 1.0);
         Ok(())
     }
 
@@ -94,7 +111,7 @@ mod tests {
         ))?;
 
         assert_eq!(
-            i.eval(&AstNode::Ident(Ident("foo".into())))?.as_number()?,
+            i.eval(&AstNode::Ident(Ident("foo".into())))?.to_number()?,
             1.0
         );
 
@@ -103,9 +120,24 @@ mod tests {
                 Box::new(AstNode::Ident(Ident("foo".into()))),
                 Box::new(AstNode::Ident(Ident("foo".into())))
             ))?
-            .as_number()?,
+            .to_number()?,
             2.0
         );
+        Ok(())
+    }
+
+    #[test]
+    fn it_concatenate_strings() -> Result<(), EvalError> {
+        let mut i = Interpreter::new();
+        assert_eq!(
+            i.eval(&AstNode::Add(
+                Box::new(AstNode::Literal(Value::String("foo".into()))),
+                Box::new(AstNode::Literal(Value::String("bar".into()))),
+            ))?
+            .to_string()?,
+            "foobar".to_string()
+        );
+
         Ok(())
     }
 }

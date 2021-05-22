@@ -22,6 +22,8 @@ impl JirParser {
                     Err(ParseError::UnsupportedNumberLiteral(num.to_string()))
                 }
             }
+            JsonValue::Null => Ok(AstNode::Literal(Value::Null)),
+            JsonValue::String(s) => Ok(AstNode::Literal(Value::String(s.clone()))),
             _ => unimplemented!(),
         }
     }
@@ -50,7 +52,7 @@ impl JirParser {
                 Box::new(Self::parse_expression(&vs[2])?),
             )),
             JsonValue::String(s) if s == "$ref" => Ok(AstNode::Ident(Self::parse_ident(&vs[1])?)),
-            _ => unimplemented!(),
+            _ => Err(ParseError::UnsupportedForm),
         }
     }
 
@@ -101,6 +103,7 @@ pub enum ParseError {
     IdentExpected,
     InvalidFormLength { actual: usize, expected: usize },
     UnsupportedNumberLiteral(String),
+    UnsupportedForm,
 }
 
 impl From<serde_json::Error> for ParseError {
