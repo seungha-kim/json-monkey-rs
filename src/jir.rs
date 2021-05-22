@@ -64,6 +64,21 @@ impl JirParser {
     }
 }
 
+#[derive(Debug)]
+pub enum ParseError {
+    InvalidJson(serde_json::Error),
+    IdentExpected,
+    InvalidFormLength { actual: usize, expected: usize },
+    UnsupportedNumberLiteral(String),
+    UnsupportedForm,
+}
+
+impl From<serde_json::Error> for ParseError {
+    fn from(e: Error) -> Self {
+        ParseError::InvalidJson(e)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -94,20 +109,5 @@ mod tests {
         );
         assert_eq!(actual, expected);
         Ok(())
-    }
-}
-
-#[derive(Debug)]
-pub enum ParseError {
-    InvalidJson(serde_json::Error),
-    IdentExpected,
-    InvalidFormLength { actual: usize, expected: usize },
-    UnsupportedNumberLiteral(String),
-    UnsupportedForm,
-}
-
-impl From<serde_json::Error> for ParseError {
-    fn from(e: Error) -> Self {
-        ParseError::InvalidJson(e)
     }
 }
