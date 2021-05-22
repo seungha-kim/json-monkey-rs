@@ -1,7 +1,16 @@
 use std::collections::HashMap;
-use crate::ast::{Ident, AstNode};
+
+use crate::ast::Ident;
 use crate::value::Value;
 
 pub struct Environment {
-    bindings: HashMap<Ident, Value>
+    pub bindings: HashMap<Ident, Value>,
+}
+
+impl Environment {
+    pub fn new() -> Self {
+        Self {
+            bindings: HashMap::new(),
+        }
+    }
 }

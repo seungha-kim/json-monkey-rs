@@ -1,8 +1,5 @@
-mod jir;
-mod environment;
 pub mod ast;
-pub mod value;
+mod environment;
 pub mod interpreter;
-pub mod error;
-
-
+mod jir;
+pub mod value;
