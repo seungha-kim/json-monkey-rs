@@ -110,4 +110,26 @@ mod tests {
         assert_eq!(actual, expected);
         Ok(())
     }
+
+    #[test]
+    fn it_parses_binding() -> Result<(), ParseError> {
+        let actual = format!("{:?}", JirParser::parse_json(r#"["$bind", "foo", 1]"#)?);
+        let expected = format!(
+            "{:?}",
+            AstNode::Bind(
+                Ident("foo".into()),
+                Box::new(AstNode::Literal(Value::Number(1.0)))
+            )
+        );
+        assert_eq!(actual, expected);
+        Ok(())
+    }
+
+    #[test]
+    fn it_parses_ref() -> Result<(), ParseError> {
+        let actual = format!("{:?}", JirParser::parse_json(r#"["$ref", "foo"]"#)?);
+        let expected = format!("{:?}", AstNode::Ident(Ident("foo".into()),));
+        assert_eq!(actual, expected);
+        Ok(())
+    }
 }
