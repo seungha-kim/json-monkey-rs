@@ -6,11 +6,16 @@ pub enum Value {
 }
 
 impl Value {
-    pub fn as_number(&self) -> Option<&f64> {
+    pub fn as_number(&self) -> Result<f64, TypeError> {
         if let Value::Number(num) = self {
-            Some(num)
+            Ok(num.clone())
         } else {
-            None
+            Err(TypeError::UnsupportedConversion)
         }
     }
+}
+
+#[derive(Debug)]
+pub enum TypeError {
+    UnsupportedConversion,
 }

@@ -15,18 +15,31 @@ impl JirParser {
     fn parse_expression(json: &JsonValue) -> Result<AstNode, ParseError> {
         match json {
             JsonValue::Array(values) => Self::parse_compound(values),
-            JsonValue::Number(num) => Ok(AstNode::Literal(Value::Number(num.as_f64().unwrap()))),
+            JsonValue::Number(num) => {
+                if let Some(n) = num.as_f64() {
+                    Ok(AstNode::Literal(Value::Number(n)))
+                } else {
+                    Err(ParseError::UnsupportedNumberLiteral(num.to_string()))
+                }
+            }
             _ => unimplemented!(),
         }
     }
 
     fn parse_compound(vs: &[JsonValue]) -> Result<AstNode, ParseError> {
         match &vs[0] {
-            JsonValue::String(s) if s == "$add" => vs[1..=2]
-                .iter()
-                .map(Self::parse_expression)
-                .collect::<Result<Vec<AstNode>, ParseError>>()
-                .map(|ns| AstNode::Add(Box::new(ns[0].clone()), Box::new(ns[1].clone()))),
+            JsonValue::String(s) if s == "$add" => {
+                if vs.len() != 3 {
+                    Err(ParseError::InvalidFormLength {
+                        actual: vs.len(),
+                        expected: 3,
+                    })
+                } else {
+                    let lhs = Self::parse_expression(&vs[1])?;
+                    let rhs = Self::parse_expression(&vs[2])?;
+                    Ok(AstNode::Add(Box::new(lhs), Box::new(rhs)))
+                }
+            }
             JsonValue::String(s) if s == "$sub" => vs[1..=2]
                 .iter()
                 .map(Self::parse_expression)
@@ -54,8 +67,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn it_parses_addition() {
-        let actual = format!("{:?}", JirParser::parse_json(r#"["$add", 1, 2]"#).unwrap());
+    fn it_parses_addition() -> Result<(), ParseError> {
+        let actual = format!("{:?}", JirParser::parse_json(r#"["$add", 1, 2]"#)?);
         let expected = format!(
             "{:?}",
             AstNode::Add(
@@ -64,11 +77,12 @@ mod tests {
             )
         );
         assert_eq!(actual, expected);
+        Ok(())
     }
 
     #[test]
-    fn it_parses_subtraction() {
-        let actual = format!("{:?}", JirParser::parse_json(r#"["$sub", 1, 2]"#).unwrap());
+    fn it_parses_subtraction() -> Result<(), ParseError> {
+        let actual = format!("{:?}", JirParser::parse_json(r#"["$sub", 1, 2]"#)?);
         let expected = format!(
             "{:?}",
             AstNode::Sub(
@@ -77,6 +91,7 @@ mod tests {
             )
         );
         assert_eq!(actual, expected);
+        Ok(())
     }
 }
 
@@ -84,6 +99,8 @@ mod tests {
 pub enum ParseError {
     InvalidJson(serde_json::Error),
     IdentExpected,
+    InvalidFormLength { actual: usize, expected: usize },
+    UnsupportedNumberLiteral(String),
 }
 
 impl From<serde_json::Error> for ParseError {
