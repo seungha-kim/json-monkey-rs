@@ -54,6 +54,16 @@ impl Interpreter {
                     }
                 }
             }
+            AstNode::While(cond, body) => {
+                loop {
+                    if self.eval(cond)?.to_boolean()? {
+                        self.eval(body)?;
+                    } else {
+                        break;
+                    }
+                }
+                Ok(Value::Null)
+            }
             AstNode::And(lhs, rhs) => {
                 let lv = self.eval(lhs)?.to_boolean()?;
                 let rv = self.eval(rhs)?.to_boolean()?;
@@ -275,6 +285,37 @@ mod tests {
                 Box::new(AstNode::Literal(Value::Number(1.0)))
             ))?,
             Value::Boolean(false)
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn it_evaluates_while_loop() -> Result<(), EvalError> {
+        let mut i = Interpreter::new();
+
+        i.eval(&AstNode::Bind(
+            Ident("foo".into()),
+            Box::new(AstNode::Literal(Value::Number(5.0))),
+        ))?;
+
+        i.eval(&AstNode::While(
+            Box::new(AstNode::NotEq(
+                Box::new(AstNode::Ident(Ident("foo".into()))),
+                Box::new(AstNode::Literal(Value::Number(0.0))),
+            )),
+            Box::new(AstNode::Bind(
+                Ident("foo".into()),
+                Box::new(AstNode::Sub(
+                    Box::new(AstNode::Ident(Ident("foo".into()))),
+                    Box::new(AstNode::Literal(Value::Number(1.0))),
+                )),
+            )),
+        ))?;
+
+        assert_eq!(
+            i.eval(&AstNode::Ident(Ident("foo".into())))?,
+            Value::Number(0.0)
         );
 
         Ok(())

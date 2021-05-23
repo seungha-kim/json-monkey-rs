@@ -19,6 +19,7 @@ pub enum AstNode {
     NotEq(Box<AstNode>, Box<AstNode>),
 
     If(Box<AstNode>, Box<AstNode>, Option<Box<AstNode>>),
+    While(Box<AstNode>, Box<AstNode>),
 
     Bind(Ident, Box<AstNode>),
 }

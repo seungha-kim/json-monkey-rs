@@ -62,6 +62,12 @@ impl JirParser {
                     false_branch,
                 ))
             }
+            JsonValue::String(s) if s == "$while" => {
+                Self::assert_form_range(vs, Some(3), Some(3))?;
+                let cond = Self::parse_expression(&vs[1])?;
+                let body = Self::parse_expression(&vs[2])?;
+                Ok(AstNode::While(Box::new(cond), Box::new(body)))
+            }
             JsonValue::String(s) if s == "$and" => {
                 Self::assert_form_range(vs, Some(3), Some(3))?;
                 Ok(AstNode::And(
@@ -209,6 +215,20 @@ mod tests {
                 Box::new(AstNode::Literal(Value::Boolean(true))),
                 Box::new(AstNode::Literal(Value::Number(1.0))),
                 Some(Box::new(AstNode::Literal(Value::Number(2.0))))
+            )
+        );
+        assert_eq!(actual, expected);
+        Ok(())
+    }
+
+    #[test]
+    fn it_parses_while_expression() -> Result<(), ParseError> {
+        let actual = format!("{:?}", JirParser::parse_json(r#"["$while", true, 1]"#)?);
+        let expected = format!(
+            "{:?}",
+            AstNode::While(
+                Box::new(AstNode::Literal(Value::Boolean(true))),
+                Box::new(AstNode::Literal(Value::Number(1.0))),
             )
         );
         assert_eq!(actual, expected);
