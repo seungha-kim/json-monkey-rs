@@ -54,6 +54,27 @@ impl Interpreter {
                     }
                 }
             }
+            AstNode::And(lhs, rhs) => {
+                let lv = self.eval(lhs)?.to_boolean()?;
+                let rv = self.eval(rhs)?.to_boolean()?;
+                Ok(Value::Boolean(lv && rv))
+            }
+            AstNode::Or(lhs, rhs) => {
+                let lv = self.eval(lhs)?.to_boolean()?;
+                let rv = self.eval(rhs)?.to_boolean()?;
+                Ok(Value::Boolean(lv || rv))
+            }
+            AstNode::Not(arg) => Ok(Value::Boolean(!self.eval(arg)?.to_boolean()?)),
+            AstNode::Eq(lhs, rhs) => {
+                let lv = self.eval(lhs)?;
+                let rv = self.eval(rhs)?;
+                Ok(Value::Boolean(lv == rv))
+            }
+            AstNode::NotEq(lhs, rhs) => {
+                let lv = self.eval(lhs)?;
+                let rv = self.eval(rhs)?;
+                Ok(Value::Boolean(lv != rv))
+            }
         }
     }
 }
@@ -202,6 +223,59 @@ mod tests {
         assert_eq!(Value::String("nonempty".into()).to_boolean()?, true);
 
         assert_eq!(Value::Null.to_boolean()?, false);
+
+        Ok(())
+    }
+
+    #[test]
+    fn it_evaluates_boolean_operation() -> Result<(), EvalError> {
+        let mut i = Interpreter::new();
+
+        assert_eq!(
+            i.eval(&AstNode::And(
+                Box::new(AstNode::Literal(Value::Boolean(true))),
+                Box::new(AstNode::Literal(Value::Boolean(false)))
+            ))?,
+            Value::Boolean(false)
+        );
+
+        assert_eq!(
+            i.eval(&AstNode::Or(
+                Box::new(AstNode::Literal(Value::Boolean(true))),
+                Box::new(AstNode::Literal(Value::Boolean(false)))
+            ))?,
+            Value::Boolean(true)
+        );
+
+        assert_eq!(
+            i.eval(&AstNode::Not(Box::new(AstNode::Literal(Value::Boolean(
+                true
+            ))),))?,
+            Value::Boolean(false)
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn it_evaluates_comparison_operation() -> Result<(), EvalError> {
+        let mut i = Interpreter::new();
+
+        assert_eq!(
+            i.eval(&AstNode::Eq(
+                Box::new(AstNode::Literal(Value::Number(1.0))),
+                Box::new(AstNode::Literal(Value::Number(1.0)))
+            ))?,
+            Value::Boolean(true)
+        );
+
+        assert_eq!(
+            i.eval(&AstNode::NotEq(
+                Box::new(AstNode::Literal(Value::Number(1.0))),
+                Box::new(AstNode::Literal(Value::Number(1.0)))
+            ))?,
+            Value::Boolean(false)
+        );
 
         Ok(())
     }
