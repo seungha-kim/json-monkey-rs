@@ -24,6 +24,7 @@ impl JirParser {
             }
             JsonValue::Null => Ok(AstNode::Literal(Value::Null)),
             JsonValue::String(s) => Ok(AstNode::Literal(Value::String(s.clone()))),
+            JsonValue::Bool(b) => Ok(AstNode::Literal(Value::Boolean(b.clone()))),
             _ => unimplemented!(),
         }
     }
@@ -52,6 +53,27 @@ impl JirParser {
                 Box::new(Self::parse_expression(&vs[2])?),
             )),
             JsonValue::String(s) if s == "$ref" => Ok(AstNode::Ident(Self::parse_ident(&vs[1])?)),
+            JsonValue::String(s) if s == "$if" => {
+                if vs.len() != 3 && vs.len() != 4 {
+                    Err(ParseError::InvalidFormLength {
+                        actual: vs.len(),
+                        expected: 3,
+                    })
+                } else {
+                    let cond = Self::parse_expression(&vs[1])?;
+                    let true_branch = Self::parse_expression(&vs[2])?;
+                    let false_branch = if vs.len() == 4 {
+                        Some(Box::new(Self::parse_expression(&vs[3])?))
+                    } else {
+                        None
+                    };
+                    Ok(AstNode::If(
+                        Box::new(cond),
+                        Box::new(true_branch),
+                        false_branch,
+                    ))
+                }
+            }
             _ => Err(ParseError::UnsupportedForm),
         }
     }
@@ -129,6 +151,36 @@ mod tests {
     fn it_parses_ref() -> Result<(), ParseError> {
         let actual = format!("{:?}", JirParser::parse_json(r#"["$ref", "foo"]"#)?);
         let expected = format!("{:?}", AstNode::Ident(Ident("foo".into()),));
+        assert_eq!(actual, expected);
+        Ok(())
+    }
+
+    #[test]
+    fn it_parses_if_expression() -> Result<(), ParseError> {
+        let actual = format!("{:?}", JirParser::parse_json(r#"["$if", true, 1, 2]"#)?);
+        let expected = format!(
+            "{:?}",
+            AstNode::If(
+                Box::new(AstNode::Literal(Value::Boolean(true))),
+                Box::new(AstNode::Literal(Value::Number(1.0))),
+                Some(Box::new(AstNode::Literal(Value::Number(2.0))))
+            )
+        );
+        assert_eq!(actual, expected);
+        Ok(())
+    }
+
+    #[test]
+    fn it_parses_if_expression_without_false_branch() -> Result<(), ParseError> {
+        let actual = format!("{:?}", JirParser::parse_json(r#"["$if", true, 1]"#)?);
+        let expected = format!(
+            "{:?}",
+            AstNode::If(
+                Box::new(AstNode::Literal(Value::Boolean(true))),
+                Box::new(AstNode::Literal(Value::Number(1.0))),
+                None,
+            )
+        );
         assert_eq!(actual, expected);
         Ok(())
     }

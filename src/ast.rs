@@ -11,5 +11,7 @@ pub enum AstNode {
     Add(Box<AstNode>, Box<AstNode>),
     Sub(Box<AstNode>, Box<AstNode>),
 
+    If(Box<AstNode>, Box<AstNode>, Option<Box<AstNode>>),
+
     Bind(Ident, Box<AstNode>),
 }

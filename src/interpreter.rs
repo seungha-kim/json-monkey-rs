@@ -43,6 +43,17 @@ impl Interpreter {
                 self.global_env.bindings.insert(ident.clone(), value);
                 Ok(Value::Null)
             }
+            AstNode::If(cond, true_branch, false_branch) => {
+                if self.eval(cond)?.to_boolean()? {
+                    Ok(self.eval(true_branch)?)
+                } else {
+                    if let Some(fb) = false_branch {
+                        self.eval(fb)
+                    } else {
+                        Ok(Value::Null)
+                    }
+                }
+            }
         }
     }
 }
@@ -61,6 +72,16 @@ impl Value {
             Value::Number(n) => Ok(n.to_string()),
             Value::String(s) => Ok(s.clone()),
             Value::Null => Ok("null".into()),
+            Value::Boolean(b) => Ok(b.to_string()),
+        }
+    }
+
+    pub fn to_boolean(&self) -> Result<bool, EvalError> {
+        match self {
+            Value::Boolean(b) => Ok(b.clone()),
+            Value::Number(n) => Ok(*n != 0.0),
+            Value::String(s) => Ok(!s.is_empty()),
+            Value::Null => Ok(false),
         }
     }
 }
@@ -137,6 +158,50 @@ mod tests {
             .to_string()?,
             "foobar".to_string()
         );
+
+        Ok(())
+    }
+
+    #[test]
+    fn it_evaluates_if_expression() -> Result<(), EvalError> {
+        let mut i = Interpreter::new();
+        assert_eq!(
+            i.eval(&AstNode::If(
+                Box::new(AstNode::Literal(Value::Boolean(true))),
+                Box::new(AstNode::Literal(Value::Number(1.0))),
+                Some(Box::new(AstNode::Literal(Value::Number(2.0)))),
+            ))?,
+            Value::Number(1.0)
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn it_evaluates_if_expression_as_null() -> Result<(), EvalError> {
+        let mut i = Interpreter::new();
+        assert_eq!(
+            i.eval(&AstNode::If(
+                Box::new(AstNode::Literal(Value::Boolean(false))),
+                Box::new(AstNode::Literal(Value::Number(1.0))),
+                None,
+            ))?,
+            Value::Null,
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn it_evaluates_non_boolean_types_as_boolean() -> Result<(), EvalError> {
+        assert_eq!(Value::Number(0.0).to_boolean()?, false);
+        assert_eq!(Value::Number(1.0).to_boolean()?, true);
+        assert_eq!(Value::Number(-1.0).to_boolean()?, true);
+
+        assert_eq!(Value::String("".into()).to_boolean()?, false);
+        assert_eq!(Value::String("nonempty".into()).to_boolean()?, true);
+
+        assert_eq!(Value::Null.to_boolean()?, false);
 
         Ok(())
     }
